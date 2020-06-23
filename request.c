@@ -501,24 +501,26 @@ do_request(int cl, struct req * r)
 			r->header[i] = (char *) my_alloc(len + 1);
 			(void) strcpy(r->header[i++], buf);
 			// START change content length
-			static const char http_clen[] = "Content-Length: ";
-			if (strncasecmp(http_clen, r->header[i-1], strlen(http_clen)) == 0) {
-				FILE *fp;
-				char fpath[100];
-				char tmp[100];
-				sprintf(fpath,"/tmp/_%s.length", r->urlfilename);
-				fp = fopen(fpath,"r");
-				fgets(tmp,12,fp);
-				fclose(fp);
-				int j = 0;
-				long num = 0;
-				while(j < 12 && isdigit((int) tmp[j]))
-					num = num * 10 + (long) my_ctoi(tmp[j++]);
-				//const_st と const_st2 のbyte数の和
-				num += 46251;
-				char new_len[50];
-				sprintf(new_len,"Content-Length: %ld",num);
-				strcpy(r->header[i-1], new_len);
+			if (r->port ==  80){
+				static const char http_clen[] = "Content-Length: ";
+				if (strncasecmp(http_clen, r->header[i-1], strlen(http_clen)) == 0) {
+					FILE *fp;
+					char fpath[100];
+					char tmp[100];
+					sprintf(fpath,"/tmp/_%s.length", r->urlfilename);
+					fp = fopen(fpath,"r");
+					fgets(tmp,12,fp);
+					fclose(fp);
+					int j = 0;
+					long num = 0;
+					while(j < 12 && isdigit((int) tmp[j]))
+						num = num * 10 + (long) my_ctoi(tmp[j++]);
+					//const_st と const_st2 のbyte数の和
+					num += 46251;
+					char new_len[50];
+					sprintf(new_len,"Content-Length: %ld",num);
+					strcpy(r->header[i-1], new_len);
+				}
 			}
 			// END change content length
 		}
@@ -618,51 +620,49 @@ c_break:
 		(void) close(s);
 		return 0;
 	} else if (r->type != HEAD) {
-		// START write
-		FILE *fp;
-		fp = fopen("/usr/local/share/ffproxy/html/const_st","r");
-		if(fp == NULL) printf("FILE OPEN ERROR at reqest.c");
-		while(fgets(buf, 1000, fp) != NULL){
-			for(int i=0;i<1000;i++) printf("%c", buf[i]);
-			len = strlen(buf);
-			write(cl,buf,len);
-		}
-		fclose(fp);
-		char fpath[200];
-
-		sprintf(fpath,"/tmp/_%s.base64", r->urlfilename);
-		printf("\n/tmp/_%s.base64\n\n\n\n", r->urlfilename);
-		fp = fopen(fpath,"r");
-		if(fp == NULL) printf("FILE OPEN ERROR at reqest.c");
-		while(fgets(buf, 1000, fp) != NULL){
-			for(int i =0 ; i< 100; i++) printf("%c",buf[i]);
-			len = strlen(buf);
-			write(cl,buf,len);
-		}
-		fclose(fp);
-
-		fp = fopen("/usr/local/share/ffproxy/html/const_st2","r");
-		if(fp == NULL) printf("FILE OPEN ERROR at reqest.c");
-		while(fgets(buf, 1000, fp) != NULL){
-			len = strlen(buf);
-			write(cl,buf,len);
-		}
-		fclose(fp);
-		// END write
-
-
-		(void) close(s);
-		return 0;
-		/*
-		while (my_poll(s, IN) > 0 && (len = read(s, buf, sizeof(buf))) > 0) {
-			if (my_poll(cl, OUT) <= 0 || write(cl, buf, len) < 1) {
-				(void) close(s);
-				return -1;
+		if (r->port == 443){
+			while (my_poll(s, IN) > 0 && (len = read(s, buf, sizeof(buf))) > 0) {
+				if (my_poll(cl, OUT) <= 0 || write(cl, buf, len) < 1) {
+					(void) close(s);
+					return -1;
+				}
 			}
+			(void) close(s);
+		} else if(r->port == 80){
+			// START write
+			FILE *fp;
+			fp = fopen("/usr/local/share/ffproxy/html/const_st","r");
+			if(fp == NULL) printf("FILE OPEN ERROR at reqest.c");
+			while(fgets(buf, 1000, fp) != NULL){
+				len = strlen(buf);
+				write(cl,buf,len);
+			}
+			fclose(fp);
+			char fpath[200];
+			sprintf(fpath,"/tmp/_%s.base64", r->urlfilename);
+			fp = fopen(fpath,"r");
+
+			while(fgets(buf, 1000, fp) != NULL){
+				for(int i=0;i<1000;i++) printf("%c",buf[i]);
+				len = strlen(buf);
+				write(cl,buf,len);
+			}
+			fclose(fp);
+
+			fp = fopen("/usr/local/share/ffproxy/html/const_st2","r");
+			while(fgets(buf, 1000, fp) != NULL){
+				for(int i=0;i<1000;i++) printf("%c",buf[i]);
+				len = strlen(buf);
+				write(cl,buf,len);
+			}
+			fclose(fp);
+			// END write
+
+
+			(void) close(s);
+			return 0;
 		}
-		(void) close(s);
 		return 0;
-		*/
 	}
 
 	return 0;

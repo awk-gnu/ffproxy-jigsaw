@@ -89,7 +89,7 @@ Port to use for above.  Defaults to 80.
 User configuration file to load.  Please note that command
 line options get overwritten by set configuration file options.
 Default location is
-.Pa _CFGFILE_ .
+.Pa /usr/local/etc/ffproxy.conf .
 Read
 .Xr ffproxy.conf 5
 for details.  Use -f "" to disable configuration files.
@@ -169,7 +169,7 @@ The location of the db/ directory may be specified by an
 argument to the command line option -D.
 If this option and configuration file option db_files_path are not used,
 ffproxy will search for db/ and html/ in
-.Pa _BASE_ .
+.Pa /usr/local/share/ffproxy .
 .Pp
 ffproxy comes with sample db/ files.  They also contain
 needed and suggested entries, as described next.
@@ -290,7 +290,7 @@ Timeout may also be tuned by `timeout_connect seconds'.
 Send a SIGHUP to the pid of the ffproxy master process
 to let it reload db/ files, html/ files, *and* configuration file.
 If no configuration file was specified,
-.Pa _CFGFILE_
+.Pa /usr/local/etc/ffproxy.conf
 is tried.  Of course, only some changes to the program can be
 done at runtime.  See
 .Xr ffproxy.conf 5
@@ -301,7 +301,7 @@ If daemonized, the master process writes the pid file
 to the working directory, that is, the directory
 specified by db_files_path or the command line parameter -D.
 It defaults to
-.Pa _BASE_ .
+.Pa /usr/local/share/ffproxy .
 The program will terminate if writing fails.
 .Sh LOGGING
 By default, the proxy logs incorrect and filtered requests.
@@ -316,7 +316,7 @@ Behaviour of ffproxy is determined by
 .It
 startup options given either on the command line
 or read from configuration files --
-.Pa _CFGFILE_
+.Pa /usr/local/etc/ffproxy.conf
 is loaded by default.
 .It
 the files in db/ which specify filtering options
@@ -327,13 +327,13 @@ If daemonized, ffproxy writes the pid of its master
 process to the file named
 .Pa ffproxy.pid
 in its working directory --
-.Pa _BASE_
+.Pa /usr/local/share/ffproxy
 by default.
 .Sh SEE ALSO
 .Pa sample.config
 for a sample configuration file
 .Pp
-.Pa _CFGFILE_
+.Pa /usr/local/etc/ffproxy.conf
 for default configuration file
 .Pp
 .Xr ffproxy.conf 5
