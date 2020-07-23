@@ -185,24 +185,7 @@ http_url(struct req * r, const char *s)
 		DEBUG(("http_url() => default port 80"));
 		r->port = 80;
 	}
-	// START make urlfilename, base64
-	int index;
-	int len = strlen(r->urlpath);
-	for(index = len; index >= 0; index--){
-		if(r->urlpath[index] == '/'){
-			index++;
-			break;
-		}
-	}
-	int c = 0;
-	for(int i = index; i <= len;i++){
-		r->urlfilename[c++] = r->urlpath[i];
-	}
 
-	char command[1000];
-	sprintf(command,"iceweasel --screenshot /tmp/_%s.png --window-size=1024,1024 %s && convert /tmp/_%s.png /tmp/_%s.jpg && base64 /tmp/_%s.jpg|tr -d '\n'|awk 4 > /tmp/_%s.base64 && echo 'OK' && wc /tmp/_%s.base64 | awk '$0=$3' > /tmp/_%s.length",r->urlfilename,r->url,r->urlfilename,r->urlfilename,r->urlfilename,r->urlfilename, r->urlfilename,r->urlfilename,r->urlfilename);
-	system(command);
-	// END make urlfilename, base64
 	return 0;
 }
 
@@ -261,7 +244,7 @@ http_rel(struct req * r, const char *s)
 			DEBUG(("http_rel() => extracted URL (%s)", r->url));
 		}
 	}
-	
+
 	return 0;
 }
 

@@ -26,7 +26,6 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <sys/stat.h>
 
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
@@ -52,16 +51,6 @@ static int read_header(int, struct req *);
 static char sgetc(int);
 static size_t _getline(int, char[], int);
 static int do_request(int, struct req *);
-
-long get_file_size(const char *file)
-{
-    struct stat statBuf;
-
-    if (stat(file, &statBuf) == 0)
-        return statBuf.st_size;
-
-    return -1L;
-}
 
 void handle_request(int cl, struct clinfo *clinfo)
 {
@@ -309,7 +298,6 @@ static int do_request(int cl, struct req *r)
     void *foo;
     size_t len, i;
     char buf[300000];
-    int flag = 0;
 
     len = 0;
     ip = 0L;
@@ -529,70 +517,80 @@ static int do_request(int cl, struct req *r)
             DEBUG(("do_request() => got remote header line: (%s)", buf));
             r->header[i] = (char *) my_alloc(len + 1);
             (void) strcpy(r->header[i++], buf);
-            if (strncmp(r->header[i - 1], "Content-Type: text/html", strlen("Content-Type: text/html")) ==
-                0) {
-                flag = 1;
-                printf("flag is on\n");
-            }
-        }
-        r->header[i] = NULL;
-        if (r->type == HEAD) {
-            if (len > 0) {
-                DEBUG(("do_request() => remote header too big"));
-                (void) close(s);
-                i = 0;
-                while (r->header[i] != NULL)
-                    free(r->header[i++]);
-                r->header[0] = NULL;
-                return E_FIL;
-            }
-            if (filter_remote(r) != 0) {
-                DEBUG(("do_request() => response was filtered"));
-                (void) close(s);
-                i = 0;
-                while (r->header[i] != NULL)
-                    free(r->header[i++]);
-                r->header[0] = NULL;
-                return E_FIL;
-            }
-            *buf = '\0';
-            len = 0;
-            i = 0;
-            while (r->header[i] != NULL) {
-                len += strlen(r->header[i]) + strlen("\r\n");
-                if (len < sizeof(buf) - 1) {
-                    (void) strcat(buf, r->header[i++]);
-                    (void) strcat(buf, "\r\n");
-                } else {
-                    DEBUG(("do_request() => remote header too big (at concatenation)"));
-                    i = 0;
-                    while (r->header[i] != NULL)
-                        free(r->header[i++]);
-                    r->header[0] = NULL;
-                    (void) close(s);
-                    return E_FIL;
+/*
+            // START change content length
+            if (r->port == 80) {
+                static const char http_clen[] = "Content-Length: ";
+                if (strncasecmp(http_clen, r->header[i - 1], strlen(http_clen))
+                    == 0) {
+                    long num = 1000000;
+                    char new_len[50];
+                    sprintf(new_len, "Content-Length: %ld", num);
+                    strcpy(r->header[i - 1], new_len);
                 }
             }
-            i = 0;
-            while (r->header[i] != NULL)
-                free(r->header[i++]);
-            r->header[0] = NULL;
-
-            len += strlen("\r\n");
-            if (len >= sizeof(buf) - 1) {
-                DEBUG(("do_request() => remote header too big (at final)"));
-                (void) close(s);
-                return E_FIL;
-            }
-            (void) strcat(buf, "\r\n");
-
-            DEBUG(("do_request() => remote header ready: (%s)", buf));
-
-            if (my_poll(cl, OUT) <= 0 || write(cl, buf, len) < 1) {
-                (void) close(s);
-                return -1;
-            }
+            // END change content length
+*/
         }
+        if (r->type != HEAD) {
+		r->header[i] = NULL;
+
+		if (len > 0) {
+		    DEBUG(("do_request() => remote header too big"));
+		    (void) close(s);
+		    i = 0;
+		    while (r->header[i] != NULL)
+			free(r->header[i++]);
+		    r->header[0] = NULL;
+		    return E_FIL;
+		}
+		if (filter_remote(r) != 0) {
+		    DEBUG(("do_request() => response was filtered"));
+		    (void) close(s);
+		    i = 0;
+		    while (r->header[i] != NULL)
+			free(r->header[i++]);
+		    r->header[0] = NULL;
+		    return E_FIL;
+		}
+		*buf = '\0';
+		len = 0;
+		i = 0;
+		while (r->header[i] != NULL) {
+		    len += strlen(r->header[i]) + strlen("\r\n");
+		    if (len < sizeof(buf) - 1) {
+			(void) strcat(buf, r->header[i++]);
+			(void) strcat(buf, "\r\n");
+		    } else {
+			DEBUG(("do_request() => remote header too big (at concatenation)"));
+			i = 0;
+			while (r->header[i] != NULL)
+			    free(r->header[i++]);
+			r->header[0] = NULL;
+			(void) close(s);
+			return E_FIL;
+		    }
+		}
+		i = 0;
+		while (r->header[i] != NULL)
+		    free(r->header[i++]);
+		r->header[0] = NULL;
+
+		len += strlen("\r\n");
+		if (len >= sizeof(buf) - 1) {
+		    DEBUG(("do_request() => remote header too big (at final)"));
+		    (void) close(s);
+		    return E_FIL;
+		}
+		(void) strcat(buf, "\r\n");
+
+		DEBUG(("do_request() => remote header ready: (%s)", buf));
+
+		if (my_poll(cl, OUT) <= 0 || write(cl, buf, len) < 1) {
+		    (void) close(s);
+		    return -1;
+		}
+	}
     }
     if (r->type == CONNECT) {
         char *con_est = "HTTP/1.0 200 Connection established\r\n\r\n";
@@ -632,111 +630,49 @@ static int do_request(int cl, struct req *r)
         (void) close(s);
         return 0;
     } else if (r->type != HEAD) {
-        printf("debug\n");
-        if (flag) {
-            FILE *fp;
-            char fpath[256];
-            char rfpath[256];
-            char command[1024];
-            unsigned int length;
-            sprintf(fpath, "/usr/local/share/ffproxy/html/test_%d.html",
-                    getpid());
-            fp = fopen(fpath, "w");
-            if (fp == NULL) {
-                printf("WRITE FILE OPEN ERROR at request.c");
-            }
-            while (my_poll(s, IN) > 0 && (len = read(s, buf, sizeof(buf))) > 0) {
-                fprintf(fp, "%s", buf);
-            }
-            fclose(fp);
+        FILE *fp;
+        char fpath[256];
+        char rfpath[256];
+        char command[1024];
+        unsigned int length;
 
-            sprintf(rfpath, "/usr/local/share/ffproxy/html/edited_%d.html",
-                    getpid());
-            sprintf(command,
-                    "cat %s | nkf | perl /usr/local/share/ffproxy/html/sand.pl > %s",
-                    fpath, rfpath);
-            system(command);
+        sprintf(fpath, "/usr/local/share/ffproxy/html/test_%d.html", getpid());
+        fp = fopen(fpath, "w");
+        if (fp == NULL) {
+            printf("WRITE FILE OPEN ERROR at request.c");
+        }
+        while (my_poll(s, IN) > 0 && (len = read(s, buf, sizeof(buf))) > 0) {
+            fprintf(fp, "%s", buf);
+        }
+        fclose(fp);
 
-            printf("%d ", getpid());
+        sprintf(rfpath, "/usr/local/share/ffproxy/html/edited_%d.html",
+                getpid());
+        sprintf(command,
+                "cat %s | nkf | perl /usr/local/share/ffproxy/html/sand.pl > %s",
+                fpath, rfpath);
+        system(command);
 
-            //START insert
-            *buf = '\0';
-            len = 0;
-            i = 0;
-            while (r->header[i] != NULL) {
-                len += strlen(r->header[i]) + strlen("\r\n");
-                if (len < sizeof(buf) - 1) {
-                    // START change content length
-                    if (r->port == 80) {
-                        static const char http_clen[] = "Content-Length: ";
-                        if (strncasecmp
-                            (http_clen, r->header[i],
-                             strlen(http_clen)) == 0) {
-                            long f_size = get_file_size(rfpath) - 16;
-                            char new_len[50];
-                            sprintf(new_len, "Content-Length: %ld", f_size);
-                            strcpy(r->header[i], new_len);
-                        }
-                    }
-                    // END change content length
-                    (void) strcat(buf, r->header[i++]);
-                    (void) strcat(buf, "\r\n");
-                } else {
-                    DEBUG(("do_request() => remote header too big (at concatenation)"));
-                    i = 0;
-                    while (r->header[i] != NULL)
-                        free(r->header[i++]);
-                    r->header[0] = NULL;
-                    (void) close(s);
-                    return E_FIL;
-                }
-            }
-            i = 0;
-            while (r->header[i] != NULL)
-                free(r->header[i++]);
-            r->header[0] = NULL;
+        printf("%d ", getpid());
 
-            len += strlen("\r\n");
-            if (len >= sizeof(buf) - 1) {
-                DEBUG(("do_request() => remote header too big (at final)"));
-                (void) close(s);
-                return E_FIL;
-            }
-            (void) strcat(buf, "\r\n");
-
-            DEBUG(("do_request() => remote header ready: (%s)", buf));
-            //header write
-            if (my_poll(cl, OUT) <= 0 || write(cl, buf, len) < 1) {
+        fp = fopen(rfpath, "r");
+        if (fp == NULL) {
+            printf("READ FILE OPEN ERROR at request.c");
+        }
+        while (fgets(buf, 300000, fp) != NULL) {
+            length = strlen(buf);
+            printf("%u ", length);
+            if (my_poll(cl, OUT) <= 0 || write(cl, buf, length) < 1) {
                 (void) close(s);
                 return -1;
             }
-             //END insert
-            fp = fopen(rfpath, "r");
-            if (fp == NULL) {
-                printf("READ FILE OPEN ERROR at request.c");
-            }
-            while (fgets(buf, 300000, fp) != NULL) {
-                length = strlen(buf);
-                //massege body write
-                if (my_poll(cl, OUT) <= 0 || write(cl, buf, length) < 1) {
-                    (void) close(s);
-                    return -1;
-                }
-            }
-            fclose(fp);
-
-            (void) close(s);
-            return 0;
-        } else {
-            while (my_poll(s, IN) > 0 && (len = read(s, buf, sizeof(buf))) > 0) {
-                if (my_poll(cl, OUT) <= 0 || write(cl, buf, len) < 1) {
-                    (void) close(s);
-                    return -1;
-                }
-            }
-            (void) close(s);
-            return 0;
         }
+        fclose(fp);
+
+        (void) close(s);
+        return 0;
     }
+
     return 0;
 }
+
