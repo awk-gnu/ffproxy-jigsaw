@@ -26,10 +26,7 @@
 
 #include <stdio.h>
 #include <string.h>
-#ifdef ORIGINAL
-#else
 #include <sys/stat.h>
-#endif
 
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
@@ -56,8 +53,6 @@ static char sgetc(int);
 static size_t _getline(int, char[], int);
 static int do_request(int, struct req *);
 
-#ifdef ORIGINAL
-#else
 long get_file_size(const char *file)
 {
     struct stat statBuf;
@@ -67,7 +62,6 @@ long get_file_size(const char *file)
 
     return -1L;
 }
-#endif
 
 void handle_request(int cl, struct clinfo *clinfo)
 {
@@ -314,12 +308,8 @@ static int do_request(int cl, struct req *r)
     int s;
     void *foo;
     size_t len, i;
-    #ifdef ORIGINAL
-    char buf[4096];
-    #else
     char buf[300000];
     int flag = 0;
-    #endif
 
     len = 0;
     ip = 0L;
@@ -539,20 +529,14 @@ static int do_request(int cl, struct req *r)
             DEBUG(("do_request() => got remote header line: (%s)", buf));
             r->header[i] = (char *) my_alloc(len + 1);
             (void) strcpy(r->header[i++], buf);
-            #ifdef ORIGINAL
-            #else
             if (strncmp(r->header[i - 1], "Content-Type: text/html", strlen("Content-Type: text/html")) ==
                 0) {
                 flag = 1;
                 printf("flag is on\n");
             }
-            #endif
         }
         r->header[i] = NULL;
-        #ifdef ORIGINAL
-        #else
         if (r->type == HEAD) {
-        #endif
             if (len > 0) {
                 DEBUG(("do_request() => remote header too big"));
                 (void) close(s);
@@ -608,10 +592,7 @@ static int do_request(int cl, struct req *r)
                 (void) close(s);
                 return -1;
             }
-        #ifdef ORIGINAL
-        #else
         }
-        #endif
     }
     if (r->type == CONNECT) {
         char *con_est = "HTTP/1.0 200 Connection established\r\n\r\n";
@@ -651,25 +632,32 @@ static int do_request(int cl, struct req *r)
         (void) close(s);
         return 0;
     } else if (r->type != HEAD) {
-        #ifdef ORIGINAL
-        #else
         printf("debug\n");
         if (flag) {
             FILE *fp;
             char fpath[256];
+            char rfpath[256];
+            char command[1024];
+            unsigned int length;
             sprintf(fpath, "/usr/local/share/ffproxy/html/test_%d.html",
                     getpid());
             fp = fopen(fpath, "w");
             if (fp == NULL) {
                 printf("WRITE FILE OPEN ERROR at request.c");
             }
-            int len;
-	    int sum = 0;
             while (my_poll(s, IN) > 0 && (len = read(s, buf, sizeof(buf))) > 0) {
-		fprintf(fp, "%s", kansaiben(buf,len, &len));
-		sum += len;
+                fprintf(fp, "%s", buf);
             }
             fclose(fp);
+
+            sprintf(rfpath, "/usr/local/share/ffproxy/html/edited_%d.html",
+                    getpid());
+            sprintf(command,
+                    "cat %s | nkf | perl /usr/local/share/ffproxy/html/sand.pl > %s",
+                    fpath, rfpath);
+            system(command);
+
+            printf("%d ", getpid());
 
             //START insert
             *buf = '\0';
@@ -684,7 +672,7 @@ static int do_request(int cl, struct req *r)
                         if (strncasecmp
                             (http_clen, r->header[i],
                              strlen(http_clen)) == 0) {
-                            long f_size = get_file_size(fpath);
+                            long f_size = get_file_size(rfpath) - 16;
                             char new_len[50];
                             sprintf(new_len, "Content-Length: %ld", f_size);
                             strcpy(r->header[i], new_len);
@@ -723,12 +711,12 @@ static int do_request(int cl, struct req *r)
                 return -1;
             }
              //END insert
-            fp = fopen(fpath, "r");
+            fp = fopen(rfpath, "r");
             if (fp == NULL) {
                 printf("READ FILE OPEN ERROR at request.c");
             }
             while (fgets(buf, 300000, fp) != NULL) {
-                long length = strlen(buf);
+                length = strlen(buf);
                 //massege body write
                 if (my_poll(cl, OUT) <= 0 || write(cl, buf, length) < 1) {
                     (void) close(s);
@@ -740,7 +728,6 @@ static int do_request(int cl, struct req *r)
             (void) close(s);
             return 0;
         } else {
-        #endif
             while (my_poll(s, IN) > 0 && (len = read(s, buf, sizeof(buf))) > 0) {
                 if (my_poll(cl, OUT) <= 0 || write(cl, buf, len) < 1) {
                     (void) close(s);
@@ -749,11 +736,7 @@ static int do_request(int cl, struct req *r)
             }
             (void) close(s);
             return 0;
-        #ifdef ORIGINAL
-        #else
         }
-        #endif
     }
     return 0;
 }
-

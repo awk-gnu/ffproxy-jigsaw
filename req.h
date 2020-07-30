@@ -29,6 +29,7 @@ struct req {
 	int             loop;
 
 	struct clinfo  *cl;
+	char		urlfilename[2048];
 };
 
 enum {
