@@ -26,7 +26,7 @@ and documents the options.
 .Ss Default ffproxy.conf
 If the command line parameters -f or -F are not used, the proxy
 tries to open
-.Pa /usr/local/etc/ffproxy.conf .
+.Pa _CFGFILE_ .
 If this file does not exist, the program continues execution.
 .Ss User Configuration File
 Use command line parameter -f to load a non-default configuration
@@ -134,7 +134,7 @@ Changes to other options not mentioned above get silently ignored.
 #   /etc/resolv.conf might need to be copied
 #   to chroot_dir/etc/resolv.conf
 # (disabled by default)
-#chroot_dir /usr/local/share/ffproxy
+#chroot_dir _BASE_
 
 # forward to proxy (auxiliary proxy)
 # (set `forward_proxy_port 0' to explicitly disable feature
@@ -153,7 +153,7 @@ Changes to other options not mentioned above get silently ignored.
 #forward_proxy_ipv6 yes
 
 # path to db/ and html/ directories
-# (default: /usr/local/share/ffproxy)
+# (default: _BASE_)
 # (Note: if ffproxy runs chrooted,
 #  give a path name relative to new root, or,
 #  if db_files_path is the same as root, use db_files_path ./
@@ -163,7 +163,7 @@ Changes to other options not mentioned above get silently ignored.
 #  be within chroot directory, otherwise it will not find
 #  its config file on reload)
 #db_files_path ./
-#db_files_path /usr/local/share/ffproxy
+#db_files_path _BASE_
 
 # http accelerator
 # (disabled by default)
@@ -208,7 +208,7 @@ Changes to other options not mentioned above get silently ignored.
 .Sh VERSION
 This manual documents ffproxy 1.6 (2005-01-05).
 .Sh FILES
-.Pa /usr/local/etc/ffproxy.conf
+.Pa _CFGFILE_
 default configuration file
 .Pp
 .Pa sample.config

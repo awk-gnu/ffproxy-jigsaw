@@ -15,7 +15,7 @@ mandir=${prefix}/man
 DESTDIR= 
 SHELL=/bin/bash
 
-SRCS = main.c print.c socket.c request.c http.c alloc.c filter.c db.c file.c dns.c signals.c access.c regex.c msg.c poll.c number.c
+SRCS = main.c print.c socket.c request.c http.c alloc.c filter.c db.c file.c dns.c signals.c access.c regex.c msg.c poll.c number.c konkon.c
 OBJS = $(SRCS:.c=.o)
 MANPAGES = ffproxy.8 ffproxy.conf.5 ffproxy.quick.7
 SMANPAGES = ffproxy.8.s ffproxy.conf.5.s ffproxy.quick.7.s
